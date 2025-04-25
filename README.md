@@ -3,7 +3,7 @@
 
 > **Repository name suggestion:** `zzvchain`
 >
-> (You can later add language‑specific sub‑repos such as `zzvchain-java`, `zzvchain-rust`, etc. if you decide to split the codebase.)
+> (language‑specific sub‑repos such as `zzvchain-java`, `zzvchain-rust`, etc.)
 
 ---
 
