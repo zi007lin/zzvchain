@@ -1,0 +1,81 @@
+name: implw — autonomous spec implementation
+run-name: implw #${{ inputs.issue_number }} by @${{ github.actor }}
+
+on:
+  workflow_dispatch:
+    inputs:
+      issue_number:
+        description: "GitHub issue number containing the scored spec body"
+        required: true
+        type: string
+
+permissions:
+  contents: write
+  pull-requests: write
+  issues: write
+
+concurrency:
+  group: implw-${{ github.repository }}-${{ inputs.issue_number }}
+  cancel-in-progress: false
+
+jobs:
+  implw:
+    runs-on: [self-hosted, contabo, zilin]
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Configure git identity
+        run: |
+          git config user.name  "ZiLin"
+          git config user.email "noreply@zzv.io"
+
+      - name: Fetch issue body
+        id: fetch_issue
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          SPEC_PATH="$(mktemp -t implw-spec-${{ inputs.issue_number }}-XXXX.md)"
+          gh issue view "${{ inputs.issue_number }}" \
+            --repo "${{ github.repository }}" \
+            --json body --jq .body > "$SPEC_PATH"
+          test -s "$SPEC_PATH"
+          echo "spec_path=$SPEC_PATH" >> "$GITHUB_OUTPUT"
+
+      - name: Run implw via claude (subscription mode)
+        id: claude_run
+        timeout-minutes: 12
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          set +e
+          timeout 10m claude -p "/implw ${{ steps.fetch_issue.outputs.spec_path }}" < /dev/null
+          CLAUDE_EXIT=$?
+          set -e
+          echo "claude_exit=$CLAUDE_EXIT" >> "$GITHUB_OUTPUT"
+          exit "$CLAUDE_EXIT"
+
+      - name: Cleanup spec tmp file
+        if: always()
+        run: rm -f "${{ steps.fetch_issue.outputs.spec_path }}"
+
+      - name: Comment failure on issue
+        if: failure()
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          CLAUDE_EXIT: ${{ steps.claude_run.outputs.claude_exit }}
+        run: |
+          RUN_URL="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          if [ "${CLAUDE_EXIT:-}" = "124" ]; then
+            BODY="implw hit timeout (exit 124) — investigate runner state and claude CLI auth. Logs: $RUN_URL"
+          else
+            BODY="implw run failed (exit ${CLAUDE_EXIT:-unknown}) — see logs: $RUN_URL"
+          fi
+          gh issue comment "${{ inputs.issue_number }}" \
+            --repo "${{ github.repository }}" \
+            --body "$BODY"
