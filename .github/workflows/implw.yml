@@ -36,7 +36,7 @@ jobs:
       - name: Fetch issue body
         id: fetch_issue
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.ZZV_DISPATCH_TOKEN || secrets.GITHUB_TOKEN }}
         run: |
           set -euo pipefail
           SPEC_PATH="$(mktemp -t implw-spec-${{ inputs.issue_number }}-XXXX.md)"
@@ -50,7 +50,12 @@ jobs:
         id: claude_run
         timeout-minutes: 12
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # zi007lin PAT fallback: the implw command runs `gh pr create`, and a PR
+          # opened with the default GITHUB_TOKEN does not trigger downstream
+          # workflow_dispatch (GitHub anti-recursion). ZZV_DISPATCH_TOKEN is the
+          # canonical cross-repo dispatch PAT; falls back to GITHUB_TOKEN where the
+          # secret is not yet provisioned. See CHORE htu-foundation#175.
+          GH_TOKEN: ${{ secrets.ZZV_DISPATCH_TOKEN || secrets.GITHUB_TOKEN }}
         run: |
           set -euo pipefail
           set +e
@@ -67,7 +72,7 @@ jobs:
       - name: Comment failure on issue
         if: failure()
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.ZZV_DISPATCH_TOKEN || secrets.GITHUB_TOKEN }}
           CLAUDE_EXIT: ${{ steps.claude_run.outputs.claude_exit }}
         run: |
           RUN_URL="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
