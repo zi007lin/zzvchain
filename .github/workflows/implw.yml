@@ -1,5 +1,10 @@
 name: implw — autonomous spec implementation
-run-name: implw #${{ inputs.issue_number }} by @${{ github.actor }}
+# `dispatch_id` (optional) is the correlation token minted by the
+# `trigger_implw` MCP tool (FEAT zzv-skills#65). It rides through to the
+# run-name so the tool can match the dispatched run back to its caller.
+# Declaring the input is required: GitHub returns HTTP 422 on a
+# workflow_dispatch carrying an undeclared input (BUG htu-foundation#180).
+run-name: implw #${{ inputs.issue_number }} by @${{ github.actor }} [${{ inputs.dispatch_id }}]
 
 on:
   workflow_dispatch:
@@ -7,6 +12,10 @@ on:
       issue_number:
         description: "GitHub issue number containing the scored spec body"
         required: true
+        type: string
+      dispatch_id:
+        description: "Correlation token from trigger_implw (optional)"
+        required: false
         type: string
 
 permissions:
