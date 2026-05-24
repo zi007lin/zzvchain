@@ -67,6 +67,26 @@ jobs:
           GH_TOKEN: ${{ secrets.ZZV_DISPATCH_TOKEN || secrets.GITHUB_TOKEN }}
         run: |
           set -euo pipefail
+          # Enforce subscription auth: Claude Code precedence is
+          # cloud-flags > ANTHROPIC_AUTH_TOKEN > ANTHROPIC_API_KEY > apiKeyHelper > subscription.
+          # Unset the two env-clearable layers (docs-prescribed; empty string is not
+          # documented as equivalent to unset). Cloud-provider flags cannot be
+          # neutralized, so fail loud if any are set. See BUG htu-foundation#185.
+          unset ANTHROPIC_API_KEY ANTHROPIC_AUTH_TOKEN
+          if [ -n "${CLAUDE_CODE_USE_BEDROCK:-}${CLAUDE_CODE_USE_VERTEX:-}${CLAUDE_CODE_USE_FOUNDRY:-}" ]; then
+            echo "::error::cloud-provider routing flag set — subscription mode bypassed"; exit 2
+          fi
+          if [ -n "${ANTHROPIC_API_KEY:-}${ANTHROPIC_AUTH_TOKEN:-}" ]; then
+            echo "::error::credential env still set after unset — subscription mode bypassed"; exit 2
+          fi
+          echo "claude auth mode: subscription (API key + auth token cleared)"
+          # The GitHub self-hosted runner caches its launch-time PATH in `.path`.
+          # After a `claude` install/update on the host, that cache stays stale until
+          # the runner unit restarts, producing exit 127. Prepending the npm-global
+          # bin here removes the restart-after-install dependency; the guard fails
+          # loud if `claude` is still unresolvable. See CHORE htu-foundation#186.
+          export PATH="$HOME/.npm-global/bin:$PATH"
+          command -v claude >/dev/null || { echo "::error::claude not found on PATH"; exit 127; }
           set +e
           timeout 10m claude -p "/implw ${{ steps.fetch_issue.outputs.spec_path }}" < /dev/null
           CLAUDE_EXIT=$?
