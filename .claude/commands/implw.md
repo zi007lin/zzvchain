@@ -92,7 +92,24 @@ content and its score block disagree; re-score before proceeding.
 - **HOLD:** `feat` / `bug` / `refactor` / `spec` / research specs, any spec
   declaring `gates[]`, or an issue carrying the `needs-approval` label.
 
-If HOLD and no solo-operator approval was given in this session → stop:
+#### Resolving a HOLD — the approval channel depends on execution mode
+
+A HOLD requires solo-operator approval before implementation starts. **How
+that approval is signalled differs by execution mode; the HOLD semantics
+themselves are identical in both.** This is **channel-correctness, not gate
+loosening** — a labeled issue is held in every mode, and the approval act
+(daniel-silvers removing the `needs-approval` label, or never attaching it) is
+unchanged. The only thing that varies is whether the approval is read from an
+in-session reply or from the issue's label state. In both modes, **PR review
+by daniel-silvers is still required to merge** — Gate 1 governs whether
+implementation starts, never whether the PR merges.
+
+**Mode detection.** Treat the run as **headless** whenever Claude Code is
+invoked in print mode (`-p`) or stdin is not a TTY (e.g. the implw runner);
+otherwise treat it as **interactive**.
+
+**Interactive (TTY / a human is in the session).** The reply path is
+authoritative. Stop and emit:
 
 ```
 needs_input: non-trivial spec — issue #<N>. Reply "approved" to proceed as
@@ -100,7 +117,24 @@ solo operator, or have daniel-silvers remove the needs-approval label.
 PR review by daniel-silvers is still required to merge.
 ```
 
-If a solo-operator "approved" reply is present → proceed.
+Proceed only when a solo-operator `"approved"` reply is present in the
+session. Approval channel for the run digest: `reply`.
+
+**Headless (`-p` / print mode, or stdin not a TTY).** No in-session reply can
+ever arrive (`claude -p < /dev/null` has no reply channel), so the
+`needs-approval` label on the target issue is the **sole** approval signal:
+
+- label **present** → HALT `needs_input`; the HOLD stands. daniel-silvers must
+  remove the label to approve.
+- label **absent** → proceed as **solo-operator approved**. The approval act
+  is daniel-silvers having removed or never attached the label — recorded
+  out-of-band of the session, not via an in-session reply. Approval channel
+  for the run digest: `label-absent` (attributed to daniel-silvers).
+
+**Run-digest record.** On Gate 1 clearance, log which approval channel cleared
+the gate: `reply` (interactive) or `label-absent` (headless, attributed to
+daniel-silvers). AUTO-classified specs clear without a HOLD and need no
+channel record.
 
 ### 5. Implement (no-stop)
 
@@ -133,7 +167,13 @@ PR #<n> opened: <url>
 Branch: <branch>
 Acquisition: <file-uploaded | inline-scored> · Spec: issues/<name>.scored.md
 Score: <score> · Type: <spec_type> · Rubric: <rubric_version>
+Gate 1: <AUTO | reply | label-absent>
 ```
+
+`Gate 1` records how the gate cleared (§4 run-digest record): `AUTO` for an
+AUTO-classified spec, `reply` when an interactive HOLD was cleared by an
+in-session approval, or `label-absent` when a headless HOLD cleared on the
+absence of the `needs-approval` label (attributed to daniel-silvers).
 
 ---
 

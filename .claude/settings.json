@@ -47,12 +47,12 @@
       "Bash(jq:*)",
       "Bash(test:*)",
       "Read(//home/zilin/dev/**)",
-      "Read(//home/zilin/actions-runner-private/_work/**)",
+      "Read(//home/zilin/actions-runner/_work/**)",
       "Read(//tmp/**)",
       "Write(//home/zilin/dev/**)",
-      "Write(//home/zilin/actions-runner-private/_work/**)",
+      "Write(//home/zilin/actions-runner/_work/**)",
       "Edit(//home/zilin/dev/**)",
-      "Edit(//home/zilin/actions-runner-private/_work/**)"
+      "Edit(//home/zilin/actions-runner/_work/**)"
     ],
     "deny": [],
     "defaultMode": "bypassPermissions"
