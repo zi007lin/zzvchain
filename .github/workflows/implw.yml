@@ -4,7 +4,7 @@ name: implw — autonomous spec implementation
 # run-name so the tool can match the dispatched run back to its caller.
 # Declaring the input is required: GitHub returns HTTP 422 on a
 # workflow_dispatch carrying an undeclared input (BUG htu-foundation#180).
-run-name: implw #${{ inputs.issue_number }} by @${{ github.actor }} [${{ inputs.dispatch_id }}]
+run-name: "implw #${{ inputs.issue_number }} by @${{ github.actor }} [${{ inputs.dispatch_id }}]"
 
 on:
   workflow_dispatch:
